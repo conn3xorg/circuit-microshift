@@ -36,15 +36,16 @@ The API listens on port 6443, and the OpenShift router serves `Route`s on 80 and
 
 On each host, in order:
 
-1. Installs `kernel-modules-extra` for the running kernel. Cloud images often ship only `kernel-modules-core`, and kube-proxy needs `xt_conntrack` and `xt_comment` from the extra set. Without them the pod network never comes up.
-2. Loads `nf_conntrack` now and at boot, through `/etc/modules-load.d/microshift.conf`.
-3. Raises `fs.inotify.max_user_watches` and `fs.inotify.max_user_instances`, as MicroShift asks.
-4. Downloads the release's `microshift-rpms-x86_64.tgz` and the five RPMs in `dependency_rpms` to `/var/lib/conn3x-microshift`, checking each against its SHA-256, then unpacks the release.
-5. Installs `microshift` and `microshift-kindnet` from the unpacked release, with the dependency RPMs alongside. It runs again whenever `release` or `dependency_rpms` changes.
-6. If firewalld is running, trusts `10.42.0.0/16` (the pods) and `169.254.169.1` (cluster DNS), and opens 6443/tcp. If it isn't running, leaves the firewall alone.
-7. Writes `config` to `/etc/microshift/config.yaml`.
-8. Starts and enables `microshift`, and restarts it when `config`, `release` or `dependency_rpms` changes.
-9. Waits up to 15 minutes for the node to turn Ready.
+1. Stops with an error that says so if the host is named `localhost`, before installing anything. MicroShift puts the host's name in its certificates and won't start with that one, and some cloud images boot as `localhost` when nothing sets a name. `node.hostnameOverride` doesn't get around it, so give the host a name first.
+2. Installs `kernel-modules-extra` for the running kernel. Cloud images often ship only `kernel-modules-core`, and kube-proxy needs `xt_conntrack` and `xt_comment` from the extra set. Without them the pod network never comes up.
+3. Loads `nf_conntrack` now and at boot, through `/etc/modules-load.d/microshift.conf`.
+4. Raises `fs.inotify.max_user_watches` and `fs.inotify.max_user_instances`, as MicroShift asks.
+5. Downloads the release's `microshift-rpms-x86_64.tgz` and the five RPMs in `dependency_rpms` to `/var/lib/conn3x-microshift`, checking each against its SHA-256, then unpacks the release.
+6. Installs `microshift` and `microshift-kindnet` from the unpacked release, with the dependency RPMs alongside. It runs again whenever `release` or `dependency_rpms` changes.
+7. If firewalld is running, trusts `10.42.0.0/16` (the pods) and `169.254.169.1` (cluster DNS), and opens 6443/tcp. If it isn't running, leaves the firewall alone.
+8. Writes `config` to `/etc/microshift/config.yaml`.
+9. Starts and enables `microshift`, and restarts it when `config`, `release` or `dependency_rpms` changes.
+10. Waits up to 15 minutes for the node to turn Ready.
 
 The pod network is kindnet, not OVN-Kubernetes. No storage driver is installed, so a `PersistentVolumeClaim` stays pending until you add one.
 
