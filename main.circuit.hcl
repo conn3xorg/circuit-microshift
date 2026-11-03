@@ -42,6 +42,17 @@ circuit "microshift" {
     become           = var.ssh_become
   }
 
+  # MicroShift puts the host's name in its certificates and won't start
+  # when it's localhost, which is what some cloud images boot as when
+  # nothing sets one. node.hostnameOverride doesn't get around it. This says
+  # so before anything is installed.
+  step "hostname" {
+    command {
+      command = "echo \"This host is named $(hostname), and MicroShift won't start with localhost as its node name. Give the host a name, with hostnamectl or a hostname step in a circuit that runs first.\" >&2; exit 1"
+      unless  = "[ \"$(hostname -s)\" != localhost ]"
+    }
+  }
+
   # Cloud images often ship only kernel-modules-core. kube-proxy needs
   # xt_conntrack and xt_comment, which are in kernel-modules-extra.
   step "kernel_modules" {
