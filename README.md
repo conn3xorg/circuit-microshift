@@ -92,7 +92,9 @@ Requires Conn3x v0.6.5 or later. MicroShift asks for at least 2 CPUs, 2 GB of me
 
 ## Tested on
 
-Rocky Linux 10 only, by hand, on a DigitalOcean droplet with 4 CPUs and 8 GB of memory and SELinux enforcing. CI only validates the configuration: MicroShift needs a real kernel, and the containers the other circuits test in can't give it one.
+Rocky Linux 10 only. MicroShift needs a kernel of its own, which the containers the other circuits test in can't give it, so CI applies [examples/local](examples/local) to a Rocky Linux 10 VM under KVM on amd64 instead, with 4 CPUs and 8 GB of memory. It checks that the second plan has no changes, deploys an app with a Service and a `Route`, and fetches it from the runner through the router. Then it reboots the VM, fetches the app again and plans again with no changes.
+
+It was also applied by hand to a DigitalOcean droplet with 4 CPUs and 8 GB of memory and SELinux enforcing.
 
 From a fresh droplet, the first apply took about five minutes and the second plan had no changes. A `whoami` deployment exposed through a `Route` answered on port 80, `oc` worked from another machine with the kubeconfig for the `subjectAltNames` address, and a pod resolved a service name through cluster DNS. The same checks passed after starting firewalld and applying again, and again after a reboot, where the second plan stayed clean. The audit log had no denials at any point.
 

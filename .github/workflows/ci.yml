@@ -32,6 +32,84 @@ jobs:
       - run: conn3x fmt -check -recursive
       - name: Validate
         run: conn3x init -backend=false && conn3x validate
-      - name: Validate the example
-        working-directory: examples/single-node
-        run: conn3x init -backend=false && conn3x validate
+      - name: Validate the examples
+        run: |
+          for dir in examples/single-node examples/local; do
+            (cd "$dir" && conn3x init -backend=false && conn3x validate)
+          done
+
+  # MicroShift needs a kernel of its own, which the containers other
+  # circuits test in can't give it, so e2e applies it to a Rocky Linux 10
+  # VM under KVM instead: examples/local starts one.
+  e2e:
+    needs: validate
+    runs-on: ubuntu-24.04
+    name: e2e (rocky10)
+    timeout-minutes: 40
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - name: Install Conn3x
+        env: *gh
+        run: *install
+      # Hosted Ubuntu runners have KVM, but /dev/kvm isn't open to the
+      # runner user until a udev rule says so.
+      - name: Install QEMU and open up KVM
+        run: |
+          echo 'KERNEL=="kvm", GROUP="kvm", MODE="0666", OPTIONS+="static_node=kvm"' | sudo tee /etc/udev/rules.d/99-kvm.rules
+          sudo udevadm control --reload-rules
+          sudo udevadm trigger --name-match=kvm
+          sudo apt-get update -q
+          sudo apt-get install -y -q --no-install-recommends qemu-system-x86 qemu-utils cloud-image-utils
+      - name: Start the Rocky Linux 10 VM
+        working-directory: examples/local
+        run: ./up.sh
+      - name: Apply, then plan again with no changes
+        working-directory: examples/local
+        run: |
+          conn3x init
+          conn3x apply -auto-approve
+          conn3x plan -detailed-exitcode
+      # An app with a Service and a Route, reached from the runner through
+      # the router's forwarded port, the way a browser would.
+      - name: Deploy an app behind a Route
+        working-directory: examples/local
+        run: |
+          ssh -o UserKnownHostsFile=known_hosts -i id_ed25519 -p 2222 root@127.0.0.1 sh -eu <<'SH'
+          export KUBECONFIG=/var/lib/microshift/resources/kubeadmin/kubeconfig
+          oc create deployment hello --image=quay.io/openshift/origin-hello-openshift:latest
+          oc expose deployment hello --port 8080
+          oc expose service hello --hostname hello.example.test
+          oc rollout status deployment/hello --timeout=300s
+          SH
+      - name: Fetch the app through the router
+        run: &fetch |
+          curl -fsS --retry 60 --retry-all-errors --retry-delay 5 --max-time 5 -H 'Host: hello.example.test' http://127.0.0.1:8080/ | grep -q 'Hello OpenShift'
+      - name: Reboot
+        working-directory: examples/local
+        run: |
+          ssh -o UserKnownHostsFile=known_hosts -i id_ed25519 -p 2222 root@127.0.0.1 'systemctl reboot' || true
+          sleep 10
+          for i in $(seq 100); do
+            ssh -q -o ConnectTimeout=5 -o UserKnownHostsFile=known_hosts -i id_ed25519 -p 2222 root@127.0.0.1 true && break
+            [ "$i" -lt 100 ] || { echo "The VM didn't come back after the reboot." >&2; exit 1; }
+            sleep 3
+          done
+      # The app first: it waits for MicroShift and the router to come back,
+      # which a plan straight after boot would otherwise catch starting.
+      - name: Fetch the app after the reboot
+        run: *fetch
+      - name: Plan again after the reboot, with no changes
+        working-directory: examples/local
+        run: conn3x plan -detailed-exitcode
+      - name: Show the VM's console and MicroShift's log
+        if: failure()
+        working-directory: examples/local
+        run: |
+          tail -n 100 serial.log || true
+          ssh -o UserKnownHostsFile=known_hosts -i id_ed25519 -p 2222 root@127.0.0.1 'journalctl -b --no-pager -u microshift | tail -n 100; KUBECONFIG=/var/lib/microshift/resources/kubeadmin/kubeconfig oc get pods -A' || true
+      - name: Clean up
+        if: always()
+        working-directory: examples/local
+        run: ./down.sh
