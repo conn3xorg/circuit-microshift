@@ -8,8 +8,11 @@ set -eu
 cd "$(dirname "$0")"
 port=${PORT:-2222}
 web_port=${WEB_PORT:-8080}
-url=https://dl.rockylinux.org/pub/rocky/10/images/x86_64
-image=Rocky-10-GenericCloud-Base.latest.x86_64.qcow2
+# One dated Rocky build, checked against its SHA-256 from Rocky's CHECKSUM
+# file, kept here so moving to a newer build is a reviewed change.
+release=10.2
+image=Rocky-10-GenericCloud-Base-10.2-20260525.0.x86_64.qcow2
+sha256=9fc9e9ff16888bb68ac39b0392e25c9c92684d50c85f1cce6ab549363bbc4b48
 cache=${XDG_CACHE_HOME:-$HOME/.cache}/circuit-microshift
 mkdir -p "$cache"
 
@@ -18,11 +21,13 @@ if [ ! -r /dev/kvm ] || [ ! -w /dev/kvm ]; then
   exit 1
 fi
 
-# The image is checked against the checksums Rocky publishes beside it.
-curl -fsSL -o "$cache/CHECKSUM" "$url/CHECKSUM"
-if ! (cd "$cache" && grep "($image)" CHECKSUM | sha256sum -c --status - 2>/dev/null); then
-  curl -fsSL -o "$cache/$image" "$url/$image"
-  (cd "$cache" && grep "($image)" CHECKSUM | sha256sum -c --quiet -)
+# Rocky moves a minor release's images to its vault once the next one is
+# out, so the build is looked for in both places.
+if ! (cd "$cache" && echo "$sha256  $image" | sha256sum -c --status - 2>/dev/null); then
+  for tree in pub vault; do
+    curl -fsSL -o "$cache/$image" "https://dl.rockylinux.org/$tree/rocky/$release/images/x86_64/$image" && break
+  done
+  (cd "$cache" && echo "$sha256  $image" | sha256sum -c --quiet -) || { rm -f "$cache/$image"; exit 1; }
 fi
 
 [ -f id_ed25519 ] || ssh-keygen -q -t ed25519 -N '' -C circuit-microshift -f id_ed25519
