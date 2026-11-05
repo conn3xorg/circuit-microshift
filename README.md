@@ -10,7 +10,7 @@ It installs the community build from [microshift-io](https://github.com/microshi
 
 ```hcl
 module "microshift" {
-  source = "github.com/conn3xorg/circuit-microshift?ref=v0.1.1"
+  source = "github.com/conn3xorg/circuit-microshift?ref=v0.2.0"
 
   hosts                = { node = "203.0.113.10" }
   ssh_private_key_file = "~/.ssh/id_ed25519"
@@ -60,7 +60,7 @@ The catch: OpenShift's mirror keeps only the newest build of each package. When 
 ### What it doesn't do
 
 - More than one node. MicroShift is single-node by design.
-- Ubuntu, Debian, Fedora, aarch64, or Rocky Linux 9. The plan fails on any host that isn't x86_64 Rocky Linux 10, AlmaLinux 10, CentOS Stream 10 or RHEL 10, and only Rocky Linux 10 has been tried.
+- Ubuntu, Debian, Fedora, aarch64, or Rocky Linux 9. The plan fails on any host that isn't x86_64 Rocky Linux 10, AlmaLinux 10 or RHEL 10, and only Rocky Linux 10 has been tried.
 - Storage (TopoLVM), Operator Lifecycle Manager or OVN-Kubernetes. microshift-io ships them as extra packages; this circuit doesn't install them.
 - Tested upgrades. Changing `release` installs from the new tarball and restarts MicroShift, but no upgrade between two releases has been tried.
 - Removal. Deleting the module leaves MicroShift running. `microshift-cleanup-data --all` and `dnf remove 'microshift*'` take it off.
