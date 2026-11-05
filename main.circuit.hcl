@@ -14,8 +14,8 @@ data "conn3x_host" "facts" {
 
   lifecycle {
     postcondition {
-      condition     = contains(["rocky", "almalinux", "centos", "rhel"], self.os_id) && split(".", self.os_version)[0] == "10" && self.arch == "x86_64"
-      error_message = "MicroShift from this circuit runs on x86_64 Rocky Linux 10, AlmaLinux 10, CentOS Stream 10 or RHEL 10."
+      condition     = contains(["rocky", "almalinux", "rhel"], self.os_id) && split(".", self.os_version)[0] == "10" && self.arch == "x86_64"
+      error_message = "MicroShift from this circuit runs on x86_64 Rocky Linux 10, AlmaLinux 10 or RHEL 10."
     }
   }
 }
