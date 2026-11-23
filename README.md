@@ -88,7 +88,7 @@ The catch: OpenShift's mirror keeps only the newest build of each package. When 
 
 ## Requirements
 
-Requires Conn3x v0.6.5 or later. MicroShift asks for at least 2 CPUs, 2 GB of memory and 10 GB of free disk; it was tested with 4 CPUs and 8 GB. Each host also needs systemd and outbound HTTPS to GitHub, `mirror.openshift.com`, `kojihub.stream.centos.org`, `quay.io` and your distribution's mirrors.
+Requires Conn3x v0.28.0 or later. MicroShift asks for at least 2 CPUs, 2 GB of memory and 10 GB of free disk; it was tested with 4 CPUs and 8 GB. Each host also needs systemd and outbound HTTPS to GitHub, `mirror.openshift.com`, `kojihub.stream.centos.org`, `quay.io` and your distribution's mirrors.
 
 ## Tested on
 
