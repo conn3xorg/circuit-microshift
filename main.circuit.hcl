@@ -158,8 +158,8 @@ circuit "microshift" {
 
   # Restarts MicroShift when its config or its packages change.
   step "restart" {
-    command {
-      command  = "systemctl restart microshift"
+    service_action {
+      name     = "microshift"
       triggers = { config = sha256(yamlencode(var.config)), packages = local.packages }
     }
   }
